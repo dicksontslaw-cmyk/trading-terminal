@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <title>1M Mission Control | Live Terminal</title>
+    <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+    <style>
+        :root { --bg: #0b0e14; --panel: #171b26; --primary: #00d2ff; --sl: #ff4b2b; --tp: #00ff88; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: white; margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        
+        #tv_chart_container { flex-grow: 1; border-right: 1px solid #2a2e39; }
+        
+        .sidebar { width: 380px; background: var(--panel); padding: 25px; display: flex; flex-direction: column; gap: 20px; box-sizing: border-box; overflow-y: auto; }
+        .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .stat-box { background: #1e222d; padding: 15px; border-radius: 12px; border: 1px solid #2a2e39; }
+        .label { font-size: 11px; color: #787b86; text-transform: uppercase; margin-bottom: 5px; }
+        .val { font-size: 22px; font-weight: bold; font-family: 'Courier New', monospace; }
+
+        .calc-panel { background: #1e222d; padding: 20px; border-radius: 15px; border: 1px solid var(--primary); position: relative; }
+        .lot-display { font-size: 48px; font-weight: 900; color: var(--primary); text-align: center; margin: 15px 0; text-shadow: 0 0 15px rgba(0,210,255,0.4); }
+        
+        input, select { width: 100%; padding: 12px; background: #0b0e14; border: 1px solid #363c4e; color: white; border-radius: 8px; margin-top: 5px; box-sizing: border-box; font-size: 16px; }
+        .btn-execute { width: 100%; padding: 18px; background: var(--primary); border: none; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 18px; color: #000; transition: 0.3s; }
+        .btn-execute:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(0,210,255,0.4); }
+    </style>
+</head>
+<body>
+
+<div id="tv_chart_container"></div>
+
+<div class="sidebar">
+    <div class="stat-grid">
+        <div class="stat-box"><div class="label">Current Balance</div><div class="val" id="disp-bal">$40,000</div></div>
+        <div class="stat-box"><div class="label">Daily Goal (1%)</div><div class="val" id="disp-goal" style="color:var(--tp)">$400</div></div>
+    </div>
+
+    <div class="calc-panel">
+        <div class="label" style="color:var(--primary)">Risk Management (Fixed 2%)</div>
+        <select id="asset-type" onchange="calculateLot()">
+            <option value="100">Gold (XAUUSD) - 100oz</option>
+            <option value="100000">Forex (Standard) - 100k</option>
+            <option value="20">Nasdaq (NAS100) - x20</option>
+            <option value="1">Crypto (BTC) - x1</option>
+        </select>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px;">
+            <div><div class="label">Entry Price</div><input type="number" id="price-entry" step="0.01" oninput="calculateLot()"></div>
+            <div><div class="label">Stop Loss</div><input type="number" id="price-sl" step="0.01" oninput="calculateLot()"></div>
+        </div>
+
+        <div class="lot-display" id="val-lot">0.00</div>
+        <div style="text-align: center; font-size: 12px; color: #787b86;">Suggested MT5 Size</div>
+    </div>
+
+    <div class="stat-box">
+        <div class="label">1M Mission Progress</div>
+        <div class="val" id="disp-progress">4.0%</div>
+        <div style="height:8px; background:#363c4e; margin-top:12px; border-radius:4px; overflow:hidden;">
+            <div id="progress-bar" style="height:100%; background:linear-gradient(90deg, #00d2ff, #00ff88); width:4%;"></div>
+        </div>
+    </div>
+
+    <button class="btn-execute" onclick="confirmTrade()">LOG REAL TRADE</button>
+</div>
+
+<script>
+    // 1. 初始化專業 TradingView 圖表
+    new TradingView.widget({
+        "autosize": true,
+        "symbol": "OANDA:XAUUSD",
+        "interval": "15",
+        "timezone": "Asia/Hong_Kong",
+        "theme": "dark",
+        "style": "1",
+        "locale": "zh_HK",
+        "toolbar_bg": "#f1f3f6",
+        "enable_publishing": false,
+        "allow_symbol_change": true,
+        "container_id": "tv_chart_container"
+    });
+
+    let balance = parseFloat(localStorage.getItem('v_trade_bal')) || 40000;
+
+    // 2. 複利計算邏輯 (跟足你份 Google Sheet)
+    function calculateLot() {
+        const entry = parseFloat(document.getElementById('price-entry').value);
+        const sl = parseFloat(document.getElementById('price-sl').value);
+        const assetMult = parseFloat(document.getElementById('asset-type').value);
+        
+        if (!entry || !sl || entry === sl) return;
+
+        const riskAmt = balance * 0.02; // 固定 2% 風險
+        const slDist = Math.abs(entry - sl);
+        
+        // 公式：手數 = 風險金額 / (止損距離 * 合約規格)
+        const lot = riskAmt / (slDist * assetMult);
+        
+        document.getElementById('val-lot').innerText = lot.toFixed(2);
+    }
+
+    function confirmTrade() {
+        const lot = document.getElementById('val-lot').innerText;
+        if (lot === "0.00") return alert("請先入價位計數！");
+        
+        const pnl = prompt(`MT5 已落單: ${lot} 手\n請輸入平倉後盈利/虧損 ($):`, "0");
+        if (pnl !== null) {
+            balance += parseFloat(pnl);
+            localStorage.setItem('v_trade_bal', balance);
+            refreshStats();
+        }
+    }
+
+    function refreshStats() {
+        document.getElementById('disp-bal').innerText = '$' + Math.round(balance).toLocaleString();
+        document.getElementById('disp-goal').innerText = '$' + Math.round(balance * 0.01).toLocaleString();
+        const prog = (balance/1000000)*100;
+        document.getElementById('disp-progress').innerText = prog.toFixed(1) + '%';
+        document.getElementById('progress-bar').style.width = Math.min(prog, 100) + '%';
+    }
+
+    refreshStats();
+</script>
+</body>
+</html>
