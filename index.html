@@ -2,123 +2,275 @@
 <html lang="zh-HK">
 <head>
     <meta charset="UTF-8">
-    <title>1M Mission Control | Live Terminal</title>
-    <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+    <title>1M Mission Control | Professional Trader Terminal</title>
+    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
     <style>
-        :root { --bg: #0b0e14; --panel: #171b26; --primary: #00d2ff; --sl: #ff4b2b; --tp: #00ff88; }
-        body { font-family: 'Inter', sans-serif; background: var(--bg); color: white; margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        :root { --bg: #0b0e14; --panel: #171b26; --primary: #00d2ff; --sl: #ff4b2b; --tp: #00ff88; --border: #2a2e39; }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: white; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
-        #tv_chart_container { flex-grow: 1; border-right: 1px solid #2a2e39; }
+        /* Layout */
+        .top-bar { height: 60px; background: var(--panel); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; justify-content: space-between; }
+        .main-container { display: flex; flex: 1; overflow: hidden; }
         
-        .sidebar { width: 380px; background: var(--panel); padding: 25px; display: flex; flex-direction: column; gap: 20px; box-sizing: border-box; overflow-y: auto; }
-        .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-        .stat-box { background: #1e222d; padding: 15px; border-radius: 12px; border: 1px solid #2a2e39; }
-        .label { font-size: 11px; color: #787b86; text-transform: uppercase; margin-bottom: 5px; }
-        .val { font-size: 22px; font-weight: bold; font-family: 'Courier New', monospace; }
-
-        .calc-panel { background: #1e222d; padding: 20px; border-radius: 15px; border: 1px solid var(--primary); position: relative; }
-        .lot-display { font-size: 48px; font-weight: 900; color: var(--primary); text-align: center; margin: 15px 0; text-shadow: 0 0 15px rgba(0,210,255,0.4); }
+        /* Sidebar & Calculator */
+        .sidebar { width: 380px; background: var(--panel); border-left: 1px solid var(--border); padding: 20px; display: flex; flex-direction: column; gap: 15px; overflow-y: auto; }
         
-        input, select { width: 100%; padding: 12px; background: #0b0e14; border: 1px solid #363c4e; color: white; border-radius: 8px; margin-top: 5px; box-sizing: border-box; font-size: 16px; }
-        .btn-execute { width: 100%; padding: 18px; background: var(--primary); border: none; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 18px; color: #000; transition: 0.3s; }
-        .btn-execute:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(0,210,255,0.4); }
+        /* Chart Area */
+        #chart-container { flex: 1; position: relative; background: #000; }
+        .chart-ui { position: absolute; top: 15px; left: 15px; z-index: 10; display: flex; gap: 8px; }
+        
+        /* Components */
+        .card { background: #1e222d; border-radius: 10px; border: 1px solid var(--border); padding: 15px; }
+        .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .label { font-size: 10px; color: #787b86; text-transform: uppercase; margin-bottom: 4px; }
+        .val { font-size: 18px; font-weight: bold; font-family: 'Courier New', monospace; }
+        
+        input, select { width: 100%; padding: 10px; background: #0b0e14; border: 1px solid var(--border); color: white; border-radius: 6px; margin-top: 5px; box-sizing: border-box; }
+        .mode-btn { padding: 8px 12px; border-radius: 4px; border: 1px solid #363c4e; background: #171b26; color: white; cursor: pointer; font-size: 11px; }
+        .mode-btn.active { border-color: var(--primary); color: var(--primary); background: rgba(0,210,255,0.1); }
+        
+        /* Table */
+        .history-area { height: 250px; background: var(--panel); border-top: 1px solid var(--border); overflow-y: auto; font-size: 11px; }
+        table { width: 100%; border-collapse: collapse; }
+        th { position: sticky; top: 0; background: #1e222d; padding: 10px; text-align: left; color: #787b86; }
+        td { padding: 10px; border-bottom: 1px solid #2a2e39; }
+        
+        .btn-confirm { width: 100%; padding: 15px; background: var(--primary); border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 10px; color: #000; }
+        .pnl-pos { color: var(--tp); }
+        .pnl-neg { color: var(--sl); }
     </style>
 </head>
 <body>
 
-<div id="tv_chart_container"></div>
+<div class="top-bar">
+    <div style="font-weight: 900; font-size: 20px; letter-spacing: 2px;">MISSION <span style="color:var(--primary)">1,000,000</span></div>
+    <div id="live-clock" style="color:#787b86; font-family: monospace;">HKT: --:--:--</div>
+</div>
 
-<div class="sidebar">
-    <div class="stat-grid">
-        <div class="stat-box"><div class="label">Current Balance</div><div class="val" id="disp-bal">$40,000</div></div>
-        <div class="stat-box"><div class="label">Daily Goal (1%)</div><div class="val" id="disp-goal" style="color:var(--tp)">$400</div></div>
-    </div>
-
-    <div class="calc-panel">
-        <div class="label" style="color:var(--primary)">Risk Management (Fixed 2%)</div>
-        <select id="asset-type" onchange="calculateLot()">
-            <option value="100">Gold (XAUUSD) - 100oz</option>
-            <option value="100000">Forex (Standard) - 100k</option>
-            <option value="20">Nasdaq (NAS100) - x20</option>
-            <option value="1">Crypto (BTC) - x1</option>
-        </select>
-        
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px;">
-            <div><div class="label">Entry Price</div><input type="number" id="price-entry" step="0.01" oninput="calculateLot()"></div>
-            <div><div class="label">Stop Loss</div><input type="number" id="price-sl" step="0.01" oninput="calculateLot()"></div>
-        </div>
-
-        <div class="lot-display" id="val-lot">0.00</div>
-        <div style="text-align: center; font-size: 12px; color: #787b86;">Suggested MT5 Size</div>
-    </div>
-
-    <div class="stat-box">
-        <div class="label">1M Mission Progress</div>
-        <div class="val" id="disp-progress">4.0%</div>
-        <div style="height:8px; background:#363c4e; margin-top:12px; border-radius:4px; overflow:hidden;">
-            <div id="progress-bar" style="height:100%; background:linear-gradient(90deg, #00d2ff, #00ff88); width:4%;"></div>
+<div class="main-container">
+    <div id="chart-container">
+        <div class="chart-ui">
+            <button id="btn-entry" class="mode-btn active" onclick="setMode('entry')">1. CLICK ENTRY</button>
+            <button id="btn-sl" class="mode-btn" onclick="setMode('sl')">2. CLICK STOP LOSS</button>
+            <button id="btn-tp" class="mode-btn" onclick="setMode('tp')">3. CLICK TAKE PROFIT</button>
         </div>
     </div>
 
-    <button class="btn-execute" onclick="confirmTrade()">LOG REAL TRADE</button>
+    <div class="sidebar">
+        <div class="stat-grid">
+            <div class="stat-box card"><div class="label">Balance</div><div class="val" id="disp-bal">$40,000</div></div>
+            <div class="stat-box card"><div class="label">Risk (2%)</div><div class="val" id="disp-risk" style="color:var(--sl)">$800</div></div>
+        </div>
+
+        <div class="card">
+            <div class="label">Asset Config</div>
+            <select id="asset-list" onchange="autoSyncAsset()">
+                <option value="100">XAUUSD (Gold)</option>
+                <option value="100000">EURUSD (Forex)</option>
+                <option value="20">NAS100 / US30</option>
+                <option value="1">BTCUSD</option>
+                <option value="custom">-- Custom Multiplier --</option>
+            </select>
+            <input type="number" id="custom-mult" placeholder="Custom Multiplier" style="display:none;">
+            <button class="mode-btn" style="margin-top:5px; width:100%" onclick="calibrateAsset()">Calibrate from Sample Trade</button>
+        </div>
+
+        <div class="card" style="border-color: var(--primary);">
+            <div class="label" style="color:var(--primary)">Suggested Order</div>
+            <div style="text-align:center; font-size: 40px; font-weight:900; color:var(--primary)" id="suggest-lot">0.00</div>
+            <div style="display:flex; justify-content: space-between; font-size: 12px;">
+                <span>R:R Ratio: <b id="val-rr">0.00</b></span>
+                <span>Risk Amount: <b id="val-risk-amt">$0</b></span>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="label">Quick Entry Log</div>
+            <div class="stat-grid">
+                <div><label class="label">MT5 Open Time</label><input type="text" id="mt5-time" placeholder="12:00"></div>
+                <div><label class="label">Risk %</label><input type="number" id="risk-pct" value="2" oninput="updateCalculation()"></div>
+            </div>
+            <button class="btn-confirm" onclick="executeTrade()">OPEN TRADE & LOG</button>
+        </div>
+    </div>
+</div>
+
+<div class="history-area">
+    <table id="tradeTable">
+        <thead>
+            <tr>
+                <th>Asset</th><th>Date</th><th>MT5 Time</th><th>HKT</th><th>Day</th>
+                <th>Entry</th><th>TP</th><th>SL</th><th>Lot</th><th>R:R</th>
+                <th>Final P/L $</th><th>Final %</th><th>Balance</th><th>Action</th>
+            </tr>
+        </thead>
+        <tbody id="logBody"></tbody>
+    </table>
 </div>
 
 <script>
-    // 1. 初始化專業 TradingView 圖表
-    new TradingView.widget({
-        "autosize": true,
-        "symbol": "OANDA:XAUUSD",
-        "interval": "15",
-        "timezone": "Asia/Hong_Kong",
-        "theme": "dark",
-        "style": "1",
-        "locale": "zh_HK",
-        "toolbar_bg": "#f1f3f6",
-        "enable_publishing": false,
-        "allow_symbol_change": true,
-        "container_id": "tv_chart_container"
-    });
+    let balance = parseFloat(localStorage.getItem('m1_bal')) || 40000;
+    let trades = JSON.parse(localStorage.getItem('m1_trades')) || [];
+    let mode = 'entry';
+    let prices = { entry: null, sl: null, tp: null };
+    let lines = { entry: null, sl: null, tp: null };
+    let chart, candleSeries;
 
-    let balance = parseFloat(localStorage.getItem('v_trade_bal')) || 40000;
+    // 1. 初始化圖表
+    function initChart() {
+        const container = document.getElementById('chart-container');
+        chart = LightweightCharts.createChart(container, {
+            layout: { background: { color: '#0b0e14' }, textColor: '#d1d4dc' },
+            grid: { vertLines: { color: '#1e222d' }, horzLines: { color: '#1e222d' } },
+            crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+            timeScale: { timeVisible: true }
+        });
+        candleSeries = chart.addCandlestickSeries({ upColor: '#00ff88', downColor: '#ff4b2b', borderVisible: false, wickUpColor: '#00ff88', wickDownColor: '#ff4b2b' });
+        
+        // 模擬數據 (實際可對接 API)
+        let data = [];
+        let p = 2030;
+        let t = Math.floor(Date.now()/1000) - 100*3600;
+        for(let i=0; i<100; i++) {
+            let o = p + Math.random()*10-5;
+            let c = o + Math.random()*10-5;
+            data.push({ time: t + i*3600, open: o, high: Math.max(o,c)+2, low: Math.min(o,c)-2, close: c });
+            p = c;
+        }
+        candleSeries.setData(data);
+        chart.timeScale().fitContent();
 
-    // 2. 複利計算邏輯 (跟足你份 Google Sheet)
-    function calculateLot() {
-        const entry = parseFloat(document.getElementById('price-entry').value);
-        const sl = parseFloat(document.getElementById('price-sl').value);
-        const assetMult = parseFloat(document.getElementById('asset-type').value);
-        
-        if (!entry || !sl || entry === sl) return;
-
-        const riskAmt = balance * 0.02; // 固定 2% 風險
-        const slDist = Math.abs(entry - sl);
-        
-        // 公式：手數 = 風險金額 / (止損距離 * 合約規格)
-        const lot = riskAmt / (slDist * assetMult);
-        
-        document.getElementById('val-lot').innerText = lot.toFixed(2);
+        chart.subscribeClick(param => {
+            if (!param.price) return;
+            prices[mode] = param.price;
+            updateChartLines();
+            updateCalculation();
+        });
     }
 
-    function confirmTrade() {
-        const lot = document.getElementById('val-lot').innerText;
-        if (lot === "0.00") return alert("請先入價位計數！");
+    function setMode(m) {
+        mode = m;
+        document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('btn-'+m).classList.add('active');
+    }
+
+    function updateChartLines() {
+        const colors = { entry: '#00d2ff', sl: '#ff4b2b', tp: '#00ff88' };
+        if (lines[mode]) candleSeries.removePriceLine(lines[mode]);
+        lines[mode] = candleSeries.createPriceLine({
+            price: prices[mode], color: colors[mode], lineWidth: 2, axisLabelVisible: true, title: mode.toUpperCase()
+        });
+    }
+
+    // 2. 核心計算：槓桿/合約規格校準
+    function updateCalculation() {
+        if (!prices.entry || !prices.sl) return;
         
-        const pnl = prompt(`MT5 已落單: ${lot} 手\n請輸入平倉後盈利/虧損 ($):`, "0");
-        if (pnl !== null) {
-            balance += parseFloat(pnl);
-            localStorage.setItem('v_trade_bal', balance);
-            refreshStats();
+        const riskPct = parseFloat(document.getElementById('risk-pct').value) / 100;
+        const multiplier = parseFloat(document.getElementById('asset-list').value === 'custom' ? 
+                           document.getElementById('custom-mult').value : document.getElementById('asset-list').value);
+        
+        const riskAmt = balance * riskPct;
+        const slDist = Math.abs(prices.entry - prices.sl);
+        const lot = riskAmt / (slDist * multiplier);
+        
+        document.getElementById('suggest-lot').innerText = lot.toFixed(2);
+        document.getElementById('val-risk-amt').innerText = '$' + riskAmt.toFixed(0);
+        
+        if (prices.tp) {
+            const rr = Math.abs(prices.tp - prices.entry) / slDist;
+            document.getElementById('val-rr').innerText = rr.toFixed(2);
         }
     }
 
-    function refreshStats() {
-        document.getElementById('disp-bal').innerText = '$' + Math.round(balance).toLocaleString();
-        document.getElementById('disp-goal').innerText = '$' + Math.round(balance * 0.01).toLocaleString();
-        const prog = (balance/1000000)*100;
-        document.getElementById('disp-progress').innerText = prog.toFixed(1) + '%';
-        document.getElementById('progress-bar').style.width = Math.min(prog, 100) + '%';
+    // 3. 校準功能：輸入過往交易來計算該資產的 Multiplier
+    function calibrateAsset() {
+        const ent = prompt("樣本交易：買入價 (Entry Price):");
+        const ext = prompt("樣本交易：平倉價 (Close Price):");
+        const lt = prompt("樣本交易：手數 (Lots):");
+        const pnl = prompt("樣本交易：實際盈利/虧損金額 ($):");
+        
+        if (ent && ext && lt && pnl) {
+            const calculatedMult = Math.abs(pnl) / (Math.abs(ent - ext) * lt);
+            alert("校準成功！該資產的 Multiplier 為: " + calculatedMult.toFixed(2));
+            document.getElementById('asset-list').value = "custom";
+            document.getElementById('custom-mult').style.display = "block";
+            document.getElementById('custom-mult').value = calculatedMult.toFixed(2);
+            updateCalculation();
+        }
     }
 
-    refreshStats();
+    // 4. 記錄交易日誌
+    function executeTrade() {
+        const lot = document.getElementById('suggest-lot').innerText;
+        const closeP = prompt("請輸入平倉價格 (Close Price) 進行結算:");
+        if (!closeP) return;
+
+        const asset = document.getElementById('asset-list').options[document.getElementById('asset-list').selectedIndex].text;
+        const now = new Date();
+        const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+        
+        // 計算盈虧
+        const multiplier = parseFloat(document.getElementById('asset-list').value === 'custom' ? 
+                           document.getElementById('custom-mult').value : document.getElementById('asset-list').value);
+        const pnlAmt = (parseFloat(closeP) - prices.entry) * multiplier * parseFloat(lot) * (prices.sl < prices.entry ? 1 : -1);
+        
+        balance += pnlAmt;
+        
+        const tradeData = {
+            asset: asset.split(' ')[0],
+            date: now.toLocaleDateString(),
+            mt5Time: document.getElementById('mt5-time').value,
+            hkt: now.toLocaleTimeString(),
+            day: days[now.getDay()],
+            entry: prices.entry.toFixed(2),
+            tp: prices.tp ? prices.tp.toFixed(2) : '-',
+            sl: prices.sl.toFixed(2),
+            lot: lot,
+            rr: document.getElementById('val-rr').innerText,
+            pnl: pnlAmt.toFixed(2),
+            pnlPct: ((pnlAmt/balance)*100).toFixed(2) + '%',
+            bal: balance.toFixed(2)
+        };
+
+        trades.push(tradeData);
+        saveAndRefresh();
+    }
+
+    function saveAndRefresh() {
+        localStorage.setItem('m1_bal', balance);
+        localStorage.setItem('m1_trades', JSON.stringify(trades));
+        
+        document.getElementById('disp-bal').innerText = '$' + Math.round(balance).toLocaleString();
+        document.getElementById('disp-risk').innerText = '$' + Math.round(balance * 0.02).toLocaleString();
+        document.getElementById('disp-progress').innerText = ((balance/1000000)*100).toFixed(1) + '%';
+        document.getElementById('progress-bar').style.width = Math.min((balance/1000000)*100, 100) + '%';
+
+        const body = document.getElementById('logBody');
+        body.innerHTML = trades.slice().reverse().map((t, idx) => `
+            <tr>
+                <td>${t.asset}</td><td>${t.date}</td><td>${t.mt5Time}</td><td>${t.hkt}</td><td>${t.day}</td>
+                <td>${t.entry}</td><td>${t.tp}</td><td>${t.sl}</td><td>${t.lot}</td><td>${t.rr}</td>
+                <td class="${t.pnl >= 0 ? 'pnl-pos' : 'pnl-neg'}">$${t.pnl}</td>
+                <td>${t.pnlPct}</td><td>$${Math.round(t.bal).toLocaleString()}</td>
+                <td><button onclick="deleteTrade(${trades.length - 1 - idx})" style="background:none; border:none; color:grey; cursor:pointer;">❌</button></td>
+            </tr>
+        `).join('');
+    }
+
+    function deleteTrade(idx) { if(confirm("Delete this record?")) { trades.splice(idx, 1); saveAndRefresh(); } }
+    
+    // 每秒更新 HK 時間
+    setInterval(() => {
+        document.getElementById('live-clock').innerText = 'HKT: ' + new Date().toLocaleTimeString();
+    }, 1000);
+
+    window.onload = () => { initChart(); saveAndRefresh(); };
 </script>
+
+<div style="height:12px; background:#1e222d; border-top: 1px solid var(--border);">
+    <div id="progress-bar" style="height:100%; background:linear-gradient(90deg, #00d2ff, #00ff88); width:4%;"></div>
+</div>
+
 </body>
 </html>
