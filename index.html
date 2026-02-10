@@ -71,4 +71,182 @@
         </div>
 
         <div class="card" style="border-color: var(--primary);">
-            <div
+            <div class="label" style="color:var(--primary)">Suggested Lot Size</div>
+            <div style="text-align:center; font-size: 42px; font-weight:900; color:var(--primary)" id="suggest-lot">0.00</div>
+            <div class="stat-grid" style="margin-top:10px;">
+                <div class="label">RR: <span id="val-rr" style="color:white">0.00</span></div>
+                <div class="label" style="text-align:right">Risk: <span id="val-risk-amt" style="color:white">$0</span></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="label">MT5 Entry Info</div>
+            <div class="stat-grid">
+                <div><label class="label">MT5 Open Time</label><input type="text" id="mt5-time" value="10:00"></div>
+                <div><label class="label">Risk %</label><input type="number" id="risk-pct" value="2" step="0.1" oninput="updateCalculation()"></div>
+            </div>
+            <button class="btn-confirm" onclick="executeTrade()">CONFIRM & OPEN TRADE</button>
+        </div>
+    </div>
+</div>
+
+<div class="history-area">
+    <table>
+        <thead>
+            <tr>
+                <th>Asset</th><th>Date</th><th>MT5 Open</th><th>HKT Open</th><th>Day</th>
+                <th>Entry</th><th>SL</th><th>TP</th><th>Lot</th><th>RR</th>
+                <th>Close Price</th><th>MT5 Close</th><th>HKT Close</th>
+                <th>PnL $</th><th>PnL %</th><th>New Balance</th><th>Action</th>
+            </tr>
+        </thead>
+        <tbody id="logBody"></tbody>
+    </table>
+</div>
+
+<script>
+    let balance = parseFloat(localStorage.getItem('m1_bal')) || 40000;
+    let trades = JSON.parse(localStorage.getItem('m1_trades')) || [];
+    let mode = 'entry';
+    let prices = { entry: null, sl: null, tp: null };
+    let lines = { entry: null, sl: null, tp: null };
+    let chart, candleSeries, lastClose = 2030.00;
+
+    function initChart() {
+        const container = document.getElementById('chart-container');
+        chart = LightweightCharts.createChart(container, {
+            layout: { background: { color: '#0b0e14' }, textColor: '#d1d4dc' },
+            grid: { vertLines: { color: '#1e222d' }, horzLines: { color: '#1e222d' } },
+            timeScale: { timeVisible: true, secondsVisible: true },
+            autoSize: true,
+        });
+
+        candleSeries = chart.addCandlestickSeries({
+            upColor: '#00ff88', downColor: '#ff4b2b', borderVisible: false, wickUpColor: '#00ff88', wickDownColor: '#ff4b2b'
+        });
+
+        // 模擬數據流
+        let data = [];
+        let t = Math.floor(Date.now()/1000) - 100*60;
+        for(let i=0; i<100; i++) {
+            const val = lastClose + (Math.random()-0.5)*2;
+            data.push({ time: t + i*60, open: lastClose, high: val+1, low: val-1, close: val });
+            lastClose = val;
+        }
+        candleSeries.setData(data);
+
+        // 實時 Tick 模擬
+        setInterval(() => {
+            const tick = lastClose + (Math.random()-0.5)*0.5;
+            candleSeries.update({ time: Math.floor(Date.now()/1000), open: lastClose, high: Math.max(lastClose, tick), low: Math.min(lastClose, tick), close: tick });
+            document.getElementById('live-price-tag').innerText = tick.toFixed(2);
+            // lastClose = tick; // 保持價位連續
+        }, 1000);
+
+        chart.subscribeClick(param => {
+            if (!param.price) return;
+            prices[mode] = param.price;
+            updateChartLines();
+            updateCalculation();
+        });
+    }
+
+    function setMode(m) {
+        mode = m;
+        document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('btn-'+m).classList.add('active');
+    }
+
+    function updateChartLines() {
+        const colors = { entry: '#00d2ff', sl: '#ff4b2b', tp: '#00ff88' };
+        if (lines[mode]) candleSeries.removePriceLine(lines[mode]);
+        lines[mode] = candleSeries.createPriceLine({
+            price: prices[mode], color: colors[mode], lineWidth: 2, axisLabelVisible: true, title: mode.toUpperCase()
+        });
+    }
+
+    function updateCalculation() {
+        if (!prices.entry || !prices.sl) return;
+        const riskPct = parseFloat(document.getElementById('risk-pct').value) / 100;
+        const mult = (document.getElementById('asset-list').value === 'custom') ? 
+                      parseFloat(document.getElementById('custom-mult').value) : 
+                      parseFloat(document.getElementById('asset-list').value);
+        
+        const riskAmt = balance * riskPct;
+        const slDist = Math.abs(prices.entry - prices.sl);
+        const lot = riskAmt / (slDist * mult);
+        
+        document.getElementById('suggest-lot').innerText = lot.toFixed(2);
+        document.getElementById('val-risk-amt').innerText = '$' + riskAmt.toFixed(0);
+        if (prices.tp) {
+            document.getElementById('val-rr').innerText = (Math.abs(prices.tp - prices.entry) / slDist).toFixed(2);
+        }
+    }
+
+    function calibrateAsset() {
+        const ent = prompt("Sample Entry Price:"), ext = prompt("Sample Close Price:"), 
+              lt = prompt("Sample Lots:"), pnl = prompt("Actual P/L Amount ($):");
+        if (ent && ext && lt && pnl) {
+            const mult = Math.abs(pnl) / (Math.abs(ent - ext) * lt);
+            alert("Success! Multiplier: " + mult.toFixed(4));
+            document.getElementById('asset-list').value = "custom";
+            document.getElementById('custom-mult').style.display = "block";
+            document.getElementById('custom-mult').value = mult.toFixed(4);
+            updateCalculation();
+        }
+    }
+
+    function executeTrade() {
+        const closeP = prompt("Close Price?"), closeMT5 = prompt("MT5 Close Time (e.g. 14:30)?");
+        if (!closeP) return;
+
+        const assetSelect = document.getElementById('asset-list');
+        const assetName = assetSelect.options[assetSelect.selectedIndex].getAttribute('data-name') || "ASSET";
+        const mult = (assetSelect.value === 'custom') ? parseFloat(document.getElementById('custom-mult').value) : parseFloat(assetSelect.value);
+        const lot = parseFloat(document.getElementById('suggest-lot').innerText);
+        
+        const now = new Date();
+        const pnl = (parseFloat(closeP) - prices.entry) * mult * lot * (prices.sl < prices.entry ? 1 : -1);
+        balance += pnl;
+
+        const trade = {
+            asset: assetName, date: now.toLocaleDateString(), mt5Open: document.getElementById('mt5-time').value,
+            hktOpen: now.toLocaleTimeString(), day: ['SUN','MON','TUE','WED','THU','FRI','SAT'][now.getDay()],
+            entry: prices.entry.toFixed(2), sl: prices.sl.toFixed(2), tp: prices.tp ? prices.tp.toFixed(2) : '-',
+            lot: lot, rr: document.getElementById('val-rr').innerText, closeP: closeP, mt5Close: closeMT5,
+            hktClose: new Date().toLocaleTimeString(), pnl: pnl.toFixed(2), pnlPct: ((pnl/(balance-pnl))*100).toFixed(2) + '%',
+            bal: balance.toFixed(2)
+        };
+
+        trades.push(trade);
+        save();
+    }
+
+    function save() {
+        localStorage.setItem('m1_bal', balance);
+        localStorage.setItem('m1_trades', JSON.stringify(trades));
+        render();
+    }
+
+    function render() {
+        document.getElementById('disp-bal').innerText = '$' + Math.round(balance).toLocaleString();
+        document.getElementById('disp-risk').innerText = '$' + Math.round(balance * 0.02).toLocaleString();
+        document.getElementById('logBody').innerHTML = trades.slice().reverse().map((t, i) => `
+            <tr>
+                <td><b>${t.asset}</b></td><td>${t.date}</td><td>${t.mt5Open}</td><td>${t.hktOpen}</td><td>${t.day}</td>
+                <td>${t.entry}</td><td>${t.sl}</td><td>${t.tp}</td><td>${t.lot}</td><td>${t.rr}</td>
+                <td>${t.closeP}</td><td>${t.mt5Close}</td><td>${t.hktClose}</td>
+                <td class="${t.pnl >=0 ? 'pnl-pos' : 'pnl-neg'}">$${t.pnl}</td>
+                <td>${t.pnlPct}</td><td>$${t.bal}</td>
+                <td><button onclick="deleteTrade(${trades.length-1-i})" style="color:grey; background:none; border:none; cursor:pointer">❌</button></td>
+            </tr>
+        `).join('');
+    }
+
+    function deleteTrade(idx) { if(confirm("Delete?")) { trades.splice(idx, 1); save(); } }
+    
+    setInterval(() => { document.getElementById('live-hkt').innerText = 'HKT: ' + new Date().toLocaleTimeString(); }, 1000);
+    window.onload = () => { initChart(); render(); };
+</script>
+</body>
+</html>
