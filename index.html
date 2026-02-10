@@ -3,37 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>1M Mission Control v6.0 | One-Click Now</title>
+    <title>1M Mission Control v7.0 | Pro Terminal</title>
     <style>
         :root { --bg: #0b0e14; --panel: #171b26; --primary: #00d2ff; --sl: #ff4b2b; --tp: #00ff88; --border: #2a2e39; }
-        * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        * { box-sizing: border-box; font-family: -apple-system, system-ui, sans-serif; }
         body { background: var(--bg); color: white; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
         /* 頂部 */
         .header { height: 50px; background: var(--panel); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; justify-content: space-between; flex-shrink: 0; }
-        .live-price-strip { background: #000; padding: 2px 15px; font-size: 12px; color: var(--tp); display: flex; gap: 15px; border-bottom: 1px solid #111; }
+        #live-feed { font-family: monospace; color: var(--tp); background: #003311; padding: 4px 10px; border-radius: 4px; border: 1px solid var(--tp); font-size: 13px; }
 
-        /* 中間區域 */
         .main-content { display: flex; flex: 1; min-height: 0; }
         .chart-container { flex: 1; background: #000; position: relative; }
         iframe { width: 100%; height: 100%; border: none; }
         
         /* 側邊欄 */
-        .sidebar { width: 380px; background: var(--panel); padding: 15px; overflow-y: auto; border-left: 1px solid var(--border); }
+        .sidebar { width: 400px; background: var(--panel); padding: 15px; overflow-y: auto; border-left: 1px solid var(--border); }
         .card { background: #1e222d; border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 12px; }
-        .label { font-size: 10px; color: #787b86; text-transform: uppercase; margin-bottom: 4px; }
+        .label { font-size: 10px; color: #787b86; text-transform: uppercase; margin-bottom: 4px; display: block; }
         .val { font-size: 20px; font-weight: bold; font-family: 'Courier New', monospace; }
         
-        /* 輸入框組合 */
         .input-group { position: relative; display: flex; align-items: center; margin-top: 5px; }
         input { width: 100%; padding: 10px; background: #0b0e14; border: 1px solid #363c4e; color: white; border-radius: 6px; font-size: 14px; }
         .btn-now { position: absolute; right: 5px; padding: 4px 8px; background: var(--primary); color: #000; border: none; border-radius: 4px; font-size: 10px; font-weight: bold; cursor: pointer; }
-        .btn-now:hover { background: white; }
-
+        
         select { width: 100%; padding: 10px; background: #0b0e14; border: 1px solid #363c4e; color: white; border-radius: 6px; margin-top: 5px; }
         .btn-main { width: 100%; padding: 16px; background: var(--primary); border: none; border-radius: 8px; font-weight: bold; cursor: pointer; color: #000; font-size: 16px; margin-top: 10px; }
         
-        /* 日誌區域 */
+        /* 自定義資產 Form */
+        #custom-asset-form { display: none; margin-top: 10px; border-top: 1px dashed #333; padding-top: 10px; }
+        .btn-add { background: none; border: 1px solid var(--primary); color: var(--primary); padding: 5px 10px; border-radius: 4px; font-size: 11px; cursor: pointer; margin-top: 5px; width: 100%; }
+
         .log-area { height: 280px; background: #000; border-top: 1px solid var(--border); overflow: auto; }
         table { width: 100%; border-collapse: collapse; font-size: 11px; min-width: 1500px; }
         th { background: #1e222d; padding: 10px; text-align: left; position: sticky; top: 0; color: #787b86; border-bottom: 2px solid var(--border); }
@@ -45,11 +45,9 @@
 <body>
 
 <div class="header">
-    <div style="font-weight: 900; font-size: 18px; letter-spacing: 1px;">MISSION <span style="color:var(--primary)">1,000,000</span></div>
-    <div style="display: flex; gap: 20px; align-items: center;">
-        <div id="live-feed" style="font-family: monospace; color: var(--tp); background: #003311; padding: 4px 10px; border-radius: 4px; border: 1px solid var(--tp);">
-            FETCHING PRICE...
-        </div>
+    <div style="font-weight: 900; font-size: 18px;">MISSION <span style="color:var(--primary)">1,000,000</span></div>
+    <div style="display: flex; gap: 15px; align-items: center;">
+        <div id="live-feed">FETCHING PRICE...</div>
         <div id="hkt-clock" style="color:var(--primary); font-family:monospace; font-weight:bold;">HKT: --:--:--</div>
     </div>
 </div>
@@ -61,46 +59,66 @@
 
     <div class="sidebar">
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-            <div class="card"><div class="label">Balance</div><div class="val" id="disp-bal">$40,000</div></div>
-            <div class="card"><div class="label">Risk (2%)</div><div class="val" id="disp-risk" style="color:var(--sl)">$800</div></div>
+            <div class="card"><span class="label">Balance</span><div class="val" id="disp-bal">$40,000</div></div>
+            <div class="card"><span class="label">Risk (2%)</span><div class="val" id="disp-risk" style="color:var(--sl)">$800</div></div>
         </div>
 
         <div class="card">
-            <div class="label">1. Asset Settings</div>
-            <select id="asset-type" onchange="changeAsset()">
-                <option value="100" data-sym="XAUUSDT" data-n="XAUUSD" data-tv="OANDA:XAUUSD">Gold (XAUUSD) - x100</option>
-                <option value="100000" data-sym="EURUSDT" data-n="EURUSD" data-tv="FX:EURUSD">EURUSD (Forex) - x100k</option>
-                <option value="10" data-sym="US30" data-n="US30" data-tv="CAPITALCOM:US30">US30 (Dow Jones) - x10</option>
-                <option value="50" data-sym="HK33" data-n="HK33" data-tv="CAPITALCOM:HK33">HK33 (Hang Seng) - x50</option>
-                <option value="1" data-sym="BTCUSDT" data-n="BTCUSD" data-tv="BINANCE:BTCUSDT">Bitcoin (BTC) - x1</option>
+            <span class="label">1. Asset Manager</span>
+            <select id="asset-select" onchange="onAssetChange()">
+                <optgroup label="Forex Major">
+                    <option value="100000" data-sym="EURUSDT" data-tv="FX:EURUSD">EURUSD</option>
+                    <option value="100000" data-sym="GBPUSDT" data-tv="FX:GBPUSD">GBPUSD</option>
+                    <option value="100000" data-sym="USDJPY" data-tv="FX:USDJPY">USDJPY</option>
+                    <option value="100000" data-sym="USDCHF" data-tv="FX:USDCHF">USDCHF</option>
+                    <option value="100000" data-sym="USDCAD" data-tv="FX:USDCAD">USDCAD</option>
+                    <option value="100000" data-sym="AUDUSDT" data-tv="FX:AUDUSD">AUDUSD</option>
+                    <option value="100000" data-sym="NZDUSDT" data-tv="FX:NZDUSD">NZDUSD</option>
+                </optgroup>
+                <optgroup label="Indices & Metals">
+                    <option value="100" data-sym="XAUUSDT" data-tv="OANDA:XAUUSD" selected>Gold (XAUUSD)</option>
+                    <option value="10" data-sym="US30" data-tv="CAPITALCOM:US30">US30 (Dow Jones)</option>
+                    <option value="1" data-sym="US500" data-tv="CAPITALCOM:US500">US500 (S&P500)</option>
+                    <option value="50" data-sym="HK33" data-tv="CAPITALCOM:HK33">HK33 (Hang Seng)</option>
+                    <option value="1" data-sym="NIKKEI225" data-tv="CAPITALCOM:NI225">Nikkei 225</option>
+                    <option value="1000" data-sym="DXY" data-tv="CAPITALCOM:DXY">DXY (Dollar Index)</option>
+                    <option value="100" data-sym="USOIL" data-tv="CAPITALCOM:USOIL">WTI Oil</option>
+                    <option value="1000" data-sym="NATGAS" data-tv="CAPITALCOM:NATGAS">Natural Gas</option>
+                </optgroup>
+                <optgroup label="Custom Assets" id="custom-group"></optgroup>
             </select>
+            <button class="btn-add" onclick="toggleCustomForm()">+ Add Custom Asset</button>
+            
+            <div id="custom-asset-form">
+                <input type="text" id="cust-name" placeholder="Name (e.g. BTCUSD)" style="margin-bottom:5px;">
+                <input type="number" id="cust-mult" placeholder="Multiplier (e.g. 1)" style="margin-bottom:5px;">
+                <input type="text" id="cust-tv" placeholder="TV Symbol (e.g. BINANCE:BTCUSDT)">
+                <button class="btn-main" style="padding:8px; font-size:12px;" onclick="addCustomAsset()">Save Asset</button>
+            </div>
         </div>
 
         <div class="card" style="border-color: var(--primary);">
-            <div class="label" style="color:var(--primary)">2. Risk Calculation</div>
-            
+            <span class="label" style="color:var(--primary)">2. Risk Calculation</span>
             <div class="label" style="margin-top:10px;">Entry Price</div>
             <div class="input-group">
-                <input type="number" id="in-ent" step="0.00001" placeholder="0.00" oninput="calcLots()">
+                <input type="number" id="in-ent" step="0.00001" oninput="calcLots()">
                 <button class="btn-now" onclick="snapPrice('in-ent')">NOW</button>
             </div>
-
             <div class="label" style="margin-top:10px;">Stop Loss</div>
             <div class="input-group">
-                <input type="number" id="in-sl" step="0.00001" placeholder="0.00" oninput="calcLots()">
+                <input type="number" id="in-sl" step="0.00001" oninput="calcLots()">
                 <button class="btn-now" onclick="snapPrice('in-sl')">NOW</button>
             </div>
-
             <div style="margin-top:15px; text-align:center;">
-                <div class="label">Suggested Lots</div>
+                <span class="label">Suggested MT5 Lots</span>
                 <div id="out-lots" style="font-size: 48px; font-weight: 900; color: var(--primary);">0.00</div>
             </div>
         </div>
 
         <div class="card">
-            <div class="label">3. Logging</div>
-            <input type="text" id="mt5-open" placeholder="MT5 Open Time (e.g. 14:30)">
-            <button class="btn-main" onclick="recordTrade()">LOG & CLOSE TRADE</button>
+            <span class="label">3. Log This Trade</span>
+            <input type="text" id="mt5-open" placeholder="MT5 Open Time (e.g. 15:45)">
+            <button class="btn-main" onclick="recordTrade()">LOG & UPDATE BALANCE</button>
         </div>
     </div>
 </div>
@@ -111,7 +129,7 @@
             <tr>
                 <th>Asset</th><th>Date</th><th>Day</th><th>MT5 Open</th><th>HKT Open</th>
                 <th>Entry</th><th>SL</th><th>Lots</th><th>Close Px</th><th>MT5 Close</th><th>HKT Close</th>
-                <th>PnL $</th><th>PnL %</th><th>New Bal</th><th>Action</th>
+                <th>PnL $</th><th>PnL %</th><th>New Balance</th><th>Action</th>
             </tr>
         </thead>
         <tbody id="log-body"></tbody>
@@ -121,85 +139,117 @@
 <script>
     let balance = parseFloat(localStorage.getItem('m1_bal')) || 40000;
     let trades = JSON.parse(localStorage.getItem('m1_trades')) || [];
+    let customAssets = JSON.parse(localStorage.getItem('m1_custom_assets')) || [];
     let currentLivePrice = 0;
 
-    // --- 實時報價引擎 (使用 Binance 公開 API 作為來源) ---
-    async function updateLivePrice() {
-        const select = document.getElementById('asset-type');
-        const symbol = select.options[select.selectedIndex].getAttribute('data-sym');
-        
-        try {
-            // 注意：Binance API 係公開且唔使 Key，最啱做 Real-time feed
-            const response = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`);
-            const data = await response.json();
-            currentLivePrice = parseFloat(data.price);
-            document.getElementById('live-feed').innerText = `${symbol}: ${currentLivePrice.toFixed(2)}`;
-        } catch (e) {
-            document.getElementById('live-feed').innerText = "LIVE FEED OFFLINE";
-        }
-    }
-    setInterval(updateLivePrice, 2000); // 每2秒更新一次
+    // --- 初始化 ---
+    window.onload = () => {
+        loadCustomAssets();
+        render();
+        updateLivePrice();
+    };
 
-    function snapPrice(targetId) {
-        if (currentLivePrice > 0) {
-            document.getElementById(targetId).value = currentLivePrice;
-            calcLots();
-        }
+    // --- 資產管理 ---
+    function toggleCustomForm() {
+        const form = document.getElementById('custom-asset-form');
+        form.style.display = form.style.display === 'block' ? 'none' : 'block';
     }
 
-    function changeAsset() {
-        const select = document.getElementById('asset-type');
-        const tvSym = select.options[select.selectedIndex].getAttribute('data-tv');
-        // 更新 Iframe 圖表
+    function addCustomAsset() {
+        const name = document.getElementById('cust-name').value;
+        const mult = document.getElementById('cust-mult').value;
+        const tv = document.getElementById('cust-tv').value;
+        if(!name || !mult || !tv) return alert("Please fill all fields");
+
+        const newAsset = { name, mult, tv, sym: name.replace("/","") };
+        customAssets.push(newAsset);
+        localStorage.setItem('m1_custom_assets', JSON.stringify(customAssets));
+        loadCustomAssets();
+        toggleCustomForm();
+    }
+
+    function loadCustomAssets() {
+        const group = document.getElementById('custom-group');
+        group.innerHTML = customAssets.map(a => `<option value="${a.mult}" data-sym="${a.sym}" data-tv="${a.tv}">${a.name}</option>`).join('');
+    }
+
+    function onAssetChange() {
+        const sel = document.getElementById('asset-select');
+        const tvSym = sel.options[sel.selectedIndex].getAttribute('data-tv');
         document.getElementById('tv-iframe').src = `https://s.tradingview.com/widgetembed/?symbol=${tvSym}&interval=15&theme=dark&style=1&timezone=Asia%2FHong_Kong&locale=zh_HK`;
         updateLivePrice();
     }
 
+    // --- 實時價格 (Binance API 輔助) ---
+    async function updateLivePrice() {
+        const sel = document.getElementById('asset-select');
+        const sym = sel.options[sel.selectedIndex].getAttribute('data-sym');
+        try {
+            // 對於 Forex/Index，Binance 唔一定有，如果冇就用隨機波動模擬或顯示 Manual
+            const response = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${sym.includes('USD') ? sym : sym+'USDT'}`);
+            const data = await response.json();
+            if(data.price) {
+                currentLivePrice = parseFloat(data.price);
+                document.getElementById('live-feed').innerText = `${sel.options[sel.selectedIndex].text}: ${currentLivePrice.toFixed(4)}`;
+            }
+        } catch (e) {
+            document.getElementById('live-feed').innerText = "LIVE FEED (MANUAL ENTRY)";
+        }
+    }
+    setInterval(updateLivePrice, 3000);
+
+    function snapPrice(id) {
+        if(currentLivePrice > 0) {
+            document.getElementById(id).value = currentLivePrice;
+            calcLots();
+        } else {
+            alert("No live feed for this asset. Please enter manually.");
+        }
+    }
+
+    // --- 計算與紀錄 ---
     function calcLots() {
         const ent = parseFloat(document.getElementById('in-ent').value);
         const sl = parseFloat(document.getElementById('in-sl').value);
-        const mult = parseFloat(document.getElementById('asset-type').value);
+        const mult = parseFloat(document.getElementById('asset-select').value);
         if (!ent || !sl || ent === sl) return;
 
-        const riskAmt = balance * 0.02; // 固定 2% Risk
-        const dist = Math.abs(ent - sl);
-        const lots = riskAmt / (dist * mult);
+        const riskAmt = balance * 0.02;
+        const lots = riskAmt / (Math.abs(ent - sl) * mult);
         document.getElementById('out-lots').innerText = lots.toFixed(2);
     }
 
     function recordTrade() {
-        const cp = prompt("Enter Close Price (平倉價):", currentLivePrice);
+        const cp = prompt("Enter Close Price:", currentLivePrice || "");
         if (!cp) return;
 
+        const sel = document.getElementById('asset-select');
         const ent = parseFloat(document.getElementById('in-ent').value);
         const sl = parseFloat(document.getElementById('in-sl').value);
+        const mult = parseFloat(sel.value);
         const lots = parseFloat(document.getElementById('out-lots').innerText);
-        const mult = parseFloat(document.getElementById('asset-type').value);
-        const assetName = document.getElementById('asset-type').options[document.getElementById('asset-type').selectedIndex].getAttribute('data-n');
         
-        const isBuy = sl < ent;
-        const pnl = (parseFloat(cp) - ent) * mult * lots * (isBuy ? 1 : -1);
+        const pnl = (parseFloat(cp) - ent) * mult * lots * (sl < ent ? 1 : -1);
         balance += pnl;
 
         const now = new Date();
-        const trade = {
-            asset: assetName,
+        trades.push({
+            asset: sel.options[sel.selectedIndex].text.split(' ')[0],
             date: now.toLocaleDateString(),
             day: ['SUN','MON','TUE','WED','THU','FRI','SAT'][now.getDay()],
             mt5o: document.getElementById('mt5-open').value || '--',
             hkto: now.toLocaleTimeString(),
-            ent: ent.toFixed(2),
-            sl: sl.toFixed(2),
-            lots: lots,
-            cp: cp,
+            ent: ent.toFixed(4),
+            sl: sl.toFixed(4),
+            lots: lots.toFixed(2),
+            cp: parseFloat(cp).toFixed(4),
             mt5c: '--',
-            hktc: new Date().toLocaleTimeString(),
+            hktc: now.toLocaleTimeString(),
             pnl: pnl.toFixed(2),
             pnlP: ((pnl/(balance-pnl))*100).toFixed(2) + '%',
             bal: balance.toFixed(2)
-        };
+        });
 
-        trades.push(trade);
         localStorage.setItem('m1_bal', balance);
         localStorage.setItem('m1_trades', JSON.stringify(trades));
         render();
@@ -220,9 +270,7 @@
     }
 
     function del(idx) { if(confirm("Delete?")) { trades.splice(idx, 1); render(); localStorage.setItem('m1_trades', JSON.stringify(trades)); } }
-
     setInterval(() => { document.getElementById('hkt-clock').innerText = 'HKT: ' + new Date().toLocaleTimeString(); }, 1000);
-    window.onload = render;
 </script>
 
 </body>
