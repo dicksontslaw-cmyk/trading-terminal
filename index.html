@@ -3,64 +3,53 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>1M Mission Control v17.0 | The Complete Restore</title>
+    <title>1M Mission Control v19.0 | Polygon Pro</title>
     <style>
         :root { --bg: #0b0e14; --panel: #171b26; --primary: #00d2ff; --sl: #ff4b2b; --tp: #00ff88; --border: #2a2e39; }
         * { box-sizing: border-box; font-family: -apple-system, system-ui, sans-serif; }
         body { background: var(--bg); color: white; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
-        /* Header & Navigation */
+        /* UI Hierarchy */
         .header { height: 60px; background: var(--panel); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; justify-content: space-between; }
-        .status-box { display: flex; align-items: center; gap: 15px; }
-        #live-status { font-family: monospace; font-size: 12px; padding: 5px 10px; border-radius: 4px; border: 1px solid #333; }
+        #live-status { font-family: monospace; font-size: 13px; font-weight: bold; padding: 5px 12px; border-radius: 4px; border: 1px solid #333; }
         .status-ok { color: var(--tp); border-color: var(--tp) !important; background: rgba(0,255,136,0.1); }
-        .status-err { color: #787b86; }
+        .status-err { color: var(--sl); border-color: var(--sl) !important; }
 
-        /* Main Layout */
         .main-content { display: flex; flex: 1; min-height: 0; }
-        .chart-container { flex: 1; background: #000; position: relative; }
+        .chart-container { flex: 1; background: #000; }
         iframe { width: 100%; height: 100%; border: none; }
         
-        /* Sidebar Control Panel */
         .sidebar { width: 400px; background: var(--panel); padding: 20px; overflow-y: auto; border-left: 1px solid var(--border); box-shadow: -10px 0 20px rgba(0,0,0,0.5); }
         .card { background: #1e222d; border: 1px solid var(--border); border-radius: 10px; padding: 15px; margin-bottom: 15px; }
         .label { font-size: 11px; color: #787b86; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; display: block; }
         .val { font-size: 28px; font-weight: bold; font-family: 'Courier New', monospace; color: var(--primary); }
         
-        /* Input Styling */
         .input-group { position: relative; display: flex; align-items: center; margin-top: 5px; }
-        input { width: 100%; padding: 12px; background: #0b0e14; border: 1px solid #363c4e; color: white; border-radius: 6px; font-size: 18px; font-family: 'Courier New', monospace; transition: 0.3s; }
-        input:focus { border-color: var(--primary); outline: none; }
+        input { width: 100%; padding: 12px; background: #0b0e14; border: 1px solid #363c4e; color: white; border-radius: 6px; font-size: 18px; font-family: 'Courier New', monospace; }
         .btn-now { position: absolute; right: 5px; padding: 8px 15px; background: var(--primary); color: #000; border: none; border-radius: 4px; font-size: 12px; font-weight: 900; cursor: pointer; }
-        .btn-now:disabled { background: #333; color: #666; cursor: not-allowed; }
 
-        select { width: 100%; padding: 12px; background: #0b0e14; border: 1px solid #363c4e; color: white; border-radius: 6px; font-size: 15px; margin-top: 5px; cursor: pointer; }
-        .btn-main { width: 100%; padding: 20px; background: var(--primary); border: none; border-radius: 8px; font-weight: 900; cursor: pointer; color: #000; font-size: 16px; margin-top: 15px; text-transform: uppercase; transition: 0.2s; }
-        .btn-main:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,210,255,0.4); }
-
-        /* Trade Log Table */
+        select { width: 100%; padding: 12px; background: #0b0e14; border: 1px solid #363c4e; color: white; border-radius: 6px; font-size: 15px; cursor: pointer; }
+        .btn-main { width: 100%; padding: 18px; background: var(--primary); border: none; border-radius: 8px; font-weight: 900; cursor: pointer; color: #000; font-size: 16px; margin-top: 15px; text-transform: uppercase; }
+        
         .log-area { height: 280px; background: #000; border-top: 1px solid var(--border); overflow: auto; }
-        table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 1300px; }
-        th { background: #1e222d; padding: 12px; text-align: left; position: sticky; top: 0; color: #787b86; border-bottom: 2px solid var(--border); }
-        td { padding: 12px; border-bottom: 1px solid #2a2e39; white-space: nowrap; }
-        .win { color: var(--tp); font-weight: bold; }
-        .loss { color: var(--sl); font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; font-size: 11px; min-width: 1200px; }
+        th { background: #1e222d; padding: 12px; text-align: left; position: sticky; top: 0; color: #787b86; }
+        td { padding: 10px; border-bottom: 1px solid #2a2e39; }
+        .win { color: var(--tp); } .loss { color: var(--sl); }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <div style="font-weight: 900; font-size: 22px; letter-spacing: 1px;">XM MISSION <span style="color:var(--primary)">1,000,000</span></div>
-    <div class="status-box">
-        <div id="live-status" class="status-err">WAITING FOR API</div>
-        <div id="hkt-clock" style="color:var(--primary); font-family:monospace; font-weight:bold; font-size:16px;"></div>
+    <div style="font-weight: 900; font-size: 22px;">XM MISSION <span style="color:var(--primary)">1,000,000</span></div>
+    <div style="display:flex; gap:15px; align-items:center;">
+        <div id="live-status" class="status-err">NO API KEY</div>
+        <div id="hkt-clock" style="color:var(--primary); font-family:monospace; font-weight:bold;"></div>
     </div>
 </div>
 
 <div class="main-content">
-    <div class="chart-container">
-        <iframe id="tv-iframe"></iframe>
-    </div>
+    <div class="chart-container"><iframe id="tv-iframe"></iframe></div>
 
     <div class="sidebar">
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:15px;">
@@ -71,133 +60,101 @@
         <div class="card">
             <span class="label">1. Asset Settings (XM Spec)</span>
             <select id="asset-select" onchange="onAssetChange()">
-                <optgroup label="Forex (NOW Supported)">
-                    <option value="100000" data-api="OANDA:EUR_USD" data-tv="FX:EURUSD">EURUSD</option>
-                    <option value="100000" data-api="OANDA:GBP_USD" data-tv="FX:GBPUSD" selected>GBPUSD</option>
-                    <option value="100000" data-api="OANDA:USD_JPY" data-tv="FX:USDJPY">USDJPY</option>
-                    <option value="100000" data-api="OANDA:USD_CHF" data-tv="FX:USDCHF">USDCHF</option>
-                    <option value="100000" data-api="OANDA:USD_CAD" data-tv="FX:USDCAD">USDCAD</option>
-                    <option value="100000" data-api="OANDA:AUD_USD" data-tv="FX:AUDUSD">AUDUSD</option>
-                    <option value="100000" data-api="OANDA:NZD_USD" data-tv="FX:NZDUSD">NZDUSD</option>
+                <optgroup label="Forex Major (100k)">
+                    <option value="100000" data-api="C:GBPUSD" data-tv="FX:GBPUSD" selected>GBPUSD</option>
+                    <option value="100000" data-api="C:EURUSD" data-tv="FX:EURUSD">EURUSD</option>
+                    <option value="100000" data-api="C:USDJPY" data-tv="FX:USDJPY">USDJPY</option>
+                    <option value="100000" data-api="C:AUDUSD" data-tv="FX:AUDUSD">AUDUSD</option>
+                    <option value="100000" data-api="C:USDCAD" data-tv="FX:USDCAD">USDCAD</option>
                 </optgroup>
-                <optgroup label="Metals">
-                    <option value="100" data-api="OANDA:XAU_USD" data-tv="OANDA:XAUUSD">XAUUSD (Gold)</option>
-                    <option value="100" data-api="OANDA:XAG_USD" data-tv="OANDA:XAGUSD">XAGUSD (Silver)</option>
-                </optgroup>
-                <optgroup label="Indices & Oil (Manual NOW)">
+                <optgroup label="Metals & Others">
+                    <option value="100" data-api="C:XAUUSD" data-tv="OANDA:XAUUSD">XAUUSD (Gold)</option>
                     <option value="1" data-api="NONE" data-tv="CAPITALCOM:US30">US30 (Cash)</option>
-                    <option value="1" data-api="NONE" data-tv="CAPITALCOM:US500">US500</option>
-                    <option value="1" data-api="NONE" data-tv="CAPITALCOM:HK33">HK50 (HK33)</option>
-                    <option value="100" data-api="NONE" data-tv="CAPITALCOM:USOIL">USOIL (WTI)</option>
+                    <option value="1" data-api="NONE" data-tv="CAPITALCOM:HK33">HK50</option>
                 </optgroup>
             </select>
         </div>
 
-        <div class="card" style="border-color: var(--primary); background: rgba(0,210,255,0.05);">
+        <div class="card" style="border-color: var(--primary);">
             <span class="label" style="color:var(--primary)">2. Risk Calculator</span>
-            <div class="label" style="margin-top:10px;">Entry Price</div>
+            <span class="label" style="margin-top:10px;">Entry Price</span>
             <div class="input-group">
-                <input type="number" id="in-ent" step="0.00001" placeholder="0.00000" oninput="calcLots()">
-                <button class="btn-now" id="btn-ent" onclick="snapPrice('in-ent')">NOW</button>
+                <input type="number" id="in-ent" step="0.00001" oninput="calcLots()"><button class="btn-now" onclick="snap('in-ent')">NOW</button>
             </div>
-            <div class="label" style="margin-top:15px;">Stop Loss</div>
+            <span class="label" style="margin-top:15px;">Stop Loss</span>
             <div class="input-group">
-                <input type="number" id="in-sl" step="0.00001" placeholder="0.00000" oninput="calcLots()">
-                <button class="btn-now" id="btn-sl" onclick="snapPrice('in-sl')">NOW</button>
+                <input type="number" id="in-sl" step="0.00001" oninput="calcLots()"><button class="btn-now" onclick="snap('in-sl')">NOW</button>
             </div>
             <div style="margin-top:20px; text-align:center;">
-                <span class="label">Recommended Lots</span>
-                <div id="out-lots" style="font-size: 56px; font-weight: 900; color: var(--primary); text-shadow: 0 0 15px rgba(0,210,255,0.3);">0.00</div>
+                <span class="label">Suggested Lots</span>
+                <div id="out-lots" style="font-size: 56px; font-weight: 900; color: var(--primary);">0.00</div>
             </div>
         </div>
-
-        <button class="btn-main" onclick="recordTrade()">LOG TRADE & UPDATE BALANCE</button>
+        <button class="btn-main" onclick="record()">LOG TRADE & SAVE</button>
     </div>
 </div>
 
-<div class="log-area">
-    <table id="log-table">
-        <thead>
-            <tr>
-                <th>Asset</th><th>Date</th><th>Day</th><th>HKT</th><th>Entry</th><th>SL</th><th>Lots</th><th>Close</th><th>PnL $</th><th>New Bal</th><th>Action</th>
-            </tr>
-        </thead>
-        <tbody id="log-body"></tbody>
-    </table>
-</div>
+<div class="log-area"><table id="log-table"><thead><tr>
+    <th>Asset</th><th>Date</th><th>Day</th><th>HKT</th><th>Entry</th><th>SL</th><th>Lots</th><th>Close</th><th>PnL $</th><th>New Bal</th><th>Action</th>
+</tr></thead><tbody id="log-body"></tbody></table></div>
 
 <script>
-    const API_KEY = "d65t7shr01qiish10gfgd65t7shr01qiish10gg0";
+    // !!! 請填入你的 Polygon API Key !!!
+    const POLYGON_KEY = "vWbbMnDntV2kVM3ZPZCmmtM9AFSD7q5L"; 
+
     let balance = parseFloat(localStorage.getItem('m1_bal')) || 40000;
     let trades = JSON.parse(localStorage.getItem('m1_trades')) || [];
-    let currentPrice = 0;
+    let curP = 0;
 
-    window.onload = () => { onAssetChange(); render(); setInterval(fetchPrice, 3000); };
+    window.onload = () => { onAssetChange(); render(); setInterval(updatePrice, 5000); };
+
+    async function updatePrice() {
+        const sel = document.getElementById('asset-select');
+        const api = sel.options[sel.selectedIndex].getAttribute('data-api');
+        const statusDiv = document.getElementById('live-status');
+        if(api === "NONE" || !POLYGON_KEY) return;
+
+        try {
+            // Polygon Last Quote API for Forex
+            const r = await fetch(`https://api.polygon.io/v1/last/currencies/${api.replace('C:','')}/?apiKey=${POLYGON_KEY}`);
+            const d = await r.json();
+            if(d.last && d.last.bid) {
+                curP = d.last.bid;
+                statusDiv.innerText = `● POLYGON: ${curP.toFixed(5)}`;
+                statusDiv.className = "status-ok";
+            }
+        } catch(e) { statusDiv.innerText = "API LIMIT"; statusDiv.className = "status-err"; }
+    }
 
     function onAssetChange() {
         const sel = document.getElementById('asset-select');
-        const opt = sel.options[sel.selectedIndex];
-        document.getElementById('tv-iframe').src = `https://s.tradingview.com/widgetembed/?symbol=${opt.getAttribute('data-tv')}&interval=15&theme=dark&style=1&timezone=Asia%2FHong_Kong&locale=zh_HK`;
-        
-        const isManual = opt.getAttribute('data-api') === "NONE";
-        document.getElementById('btn-ent').disabled = isManual;
-        document.getElementById('btn-sl').disabled = isManual;
-        
-        fetchPrice();
+        document.getElementById('tv-iframe').src = `https://s.tradingview.com/widgetembed/?symbol=${sel.options[sel.selectedIndex].getAttribute('data-tv')}&interval=15&theme=dark&style=1&timezone=Asia%2FHong_Kong&locale=zh_HK`;
+        updatePrice();
     }
 
-    async function fetchPrice() {
-        const sel = document.getElementById('asset-select');
-        const apiSym = sel.options[sel.selectedIndex].getAttribute('data-api');
-        const statusDiv = document.getElementById('live-status');
-        if(apiSym === "NONE") { statusDiv.innerText = "MANUAL MODE"; statusDiv.className = "status-err"; return; }
-
-        try {
-            const res = await fetch(`https://finnhub.io/api/v1/quote?symbol=${apiSym}&token=${API_KEY}`);
-            const data = await res.json();
-            if(data.c) {
-                currentPrice = parseFloat(data.c);
-                statusDiv.innerText = `● LIVE: ${currentPrice.toFixed(5)}`;
-                statusDiv.className = "status-ok";
-            }
-        } catch (e) { statusDiv.innerText = "API ERROR"; statusDiv.className = "status-err"; }
-    }
-
-    function snapPrice(id) {
-        if(currentPrice > 0) { document.getElementById(id).value = currentPrice; calcLots(); }
-    }
+    function snap(id) { if(curP > 0) { document.getElementById(id).value = curP; calcLots(); } }
 
     function calcLots() {
-        const ent = parseFloat(document.getElementById('in-ent').value);
-        const sl = parseFloat(document.getElementById('in-sl').value);
-        const mult = parseFloat(document.getElementById('asset-select').value);
-        if(!ent || !sl || ent === sl) return;
-        const lots = (balance * 0.02) / (Math.abs(ent - sl) * mult);
-        document.getElementById('out-lots').innerText = Math.max(0.01, lots).toFixed(2);
+        const e = parseFloat(document.getElementById('in-ent').value);
+        const s = parseFloat(document.getElementById('in-sl').value);
+        const m = parseFloat(document.getElementById('asset-select').value);
+        if(!e || !s || e===s) return;
+        const l = (balance * 0.02) / (Math.abs(e - s) * m);
+        document.getElementById('out-lots').innerText = Math.max(0.01, l).toFixed(2);
     }
 
-    function recordTrade() {
-        const ent = parseFloat(document.getElementById('in-ent').value);
-        if(!ent) return;
-        const cp = prompt("Enter Close Price:", currentPrice || ent);
-        if(!cp) return;
+    function record() {
+        const e = parseFloat(document.getElementById('in-ent').value);
+        const cp = prompt("Close Price:", curP || e);
+        if(!cp || !e) return;
         const sel = document.getElementById('asset-select');
         const sl = parseFloat(document.getElementById('in-sl').value);
-        const lots = parseFloat(document.getElementById('out-lots').innerText);
-        const mult = parseFloat(sel.value);
-        const pnl = (parseFloat(cp)-ent)*mult*lots*(sl<ent?1:-1);
+        const l = parseFloat(document.getElementById('out-lots').innerText);
+        const pnl = (parseFloat(cp)-e)*sel.value*l*(sl<e?1:-1);
         balance += pnl;
-        
         const now = new Date();
-        trades.push({
-            a: sel.options[sel.selectedIndex].text.split(' ')[0],
-            d: now.toLocaleDateString(),
-            w: ['SUN','MON','TUE','WED','THU','FRI','SAT'][now.getDay()],
-            t: now.toLocaleTimeString(),
-            en: ent.toFixed(5), sl: sl.toFixed(5), lt: lots, cp: cp, pnl: pnl.toFixed(2), bal: balance.toFixed(2)
-        });
-        localStorage.setItem('m1_bal', balance);
-        localStorage.setItem('m1_trades', JSON.stringify(trades));
+        trades.push({ a: sel.options[sel.selectedIndex].text.split(' ')[0], d: now.toLocaleDateString(), w: ['SUN','MON','TUE','WED','THU','FRI','SAT'][now.getDay()], t: now.toLocaleTimeString(), en: e.toFixed(5), sl: sl.toFixed(5), lt: l, cp: cp, pnl: pnl.toFixed(2), bal: balance.toFixed(2) });
+        localStorage.setItem('m1_bal', balance); localStorage.setItem('m1_trades', JSON.stringify(trades));
         render();
     }
 
@@ -205,15 +162,10 @@
         document.getElementById('disp-bal').innerText = '$' + Math.round(balance).toLocaleString();
         document.getElementById('disp-risk').innerText = '$' + Math.round(balance * 0.02).toLocaleString();
         document.getElementById('log-body').innerHTML = trades.slice().reverse().map((t, i) => `
-            <tr>
-                <td><b>${t.a}</b></td><td>${t.d}</td><td>${t.w}</td><td>${t.t}</td>
-                <td>${t.en}</td><td>${t.sl}</td><td>${t.lt}</td><td>${t.cp}</td>
-                <td class="${t.pnl>=0?'win':'loss'}">$${t.pnl}</td><td>$${t.bal}</td>
-                <td><button onclick="del(${trades.length-1-i})" style="cursor:pointer; background:none; border:none;">❌</button></td>
-            </tr>`).join('');
+            <tr><td><b>${t.a}</b></td><td>${t.d}</td><td>${t.w}</td><td>${t.t}</td><td>${t.en}</td><td>${t.sl}</td><td>${t.lt}</td><td>${t.cp}</td><td class="${t.pnl>=0?'win':'loss'}">$${t.pnl}</td><td>$${t.bal}</td><td><button onclick="del(${trades.length-1-i})" style="background:none; border:none; cursor:pointer;">❌</button></td></tr>`).join('');
     }
 
-    function del(idx) { if(confirm("Delete?")) { trades.splice(idx,1); render(); localStorage.setItem('m1_trades', JSON.stringify(trades)); } }
+    function del(i) { if(confirm("Del?")) { trades.splice(i,1); render(); localStorage.setItem('m1_trades', JSON.stringify(trades)); } }
     setInterval(() => document.getElementById('hkt-clock').innerText = 'HKT: ' + new Date().toLocaleTimeString(), 1000);
 </script>
 </body>
