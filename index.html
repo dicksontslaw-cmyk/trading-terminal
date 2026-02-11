@@ -3,13 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>1M Mission Control v25.0 | AUTO-FILL</title>
+    <title>1M Mission Control v26.0 | Hybrid Mode</title>
     <style>
         :root { --bg: #0b0e14; --panel: #171b26; --primary: #00d2ff; --sl: #ff4b2b; --tp: #00ff88; --border: #2a2e39; }
         * { box-sizing: border-box; font-family: -apple-system, system-ui, sans-serif; }
         body { background: var(--bg); color: white; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
-        /* UI Hierarchy */
         .header { height: 60px; background: var(--panel); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; justify-content: space-between; }
         #live-status { font-family: monospace; font-size: 14px; font-weight: bold; color: var(--tp); background: rgba(0,255,136,0.1); padding: 6px 15px; border-radius: 4px; border: 1px solid var(--tp); min-width: 150px; text-align: center; }
 
@@ -58,13 +57,15 @@
         <div class="card">
             <span class="label">1. Asset Settings (XM Spec)</span>
             <select id="asset-select" onchange="onAssetChange()">
-                <optgroup label="Forex Major (100k)">
-                    <option value="100000" data-ws="gbpusdt" data-tv="FX:GBPUSD" selected>GBPUSD</option>
-                    <option value="100000" data-ws="eurusdt" data-tv="FX:EURUSD">EURUSD</option>
+                <optgroup label="Forex Major (100k - AUTO)">
+                    <option value="100000" data-ws="gbpusdt" data-tv="FX:GBPUSD">GBPUSD</option>
+                    <option value="100000" data-ws="eurusdt" data-tv="FX:EURUSD" selected>EURUSD</option>
                     <option value="100000" data-ws="usdjpy" data-tv="FX:USDJPY">USDJPY</option>
                     <option value="100000" data-ws="audusdt" data-tv="FX:AUDUSD">AUDUSD</option>
                 </optgroup>
-                <optgroup label="Metals/Crypto">
+                <optgroup label="Other Assets (Manual Snap)">
+                    <option value="100000" data-ws="none" data-tv="FX:USDCHF">USDCHF</option>
+                    <option value="100000" data-ws="none" data-tv="FX:USDCAD">USDCAD</option>
                     <option value="100" data-ws="paxgusdt" data-tv="OANDA:XAUUSD">XAUUSD (Gold)</option>
                     <option value="1" data-ws="btcusdt" data-tv="BITSTAMP:BTCUSD">BTCUSD</option>
                 </optgroup>
@@ -109,12 +110,18 @@
     let currentPrice = 0;
     let ws;
 
-    // 使用 WebSocket 獲取即時價格 (繞過所有瀏覽器限制)
+    // WebSocket 獲取即時價格
     function connectWS() {
         if(ws) ws.close();
         const sel = document.getElementById('asset-select');
         const symbol = sel.options[sel.selectedIndex].getAttribute('data-ws');
         
+        if(symbol === "none") {
+            currentPrice = 0;
+            document.getElementById('live-status').innerText = `● MANUAL SYNC`;
+            return;
+        }
+
         ws = new WebSocket(`wss://stream.binance.com:9443/ws/${symbol}@ticker`);
         ws.onmessage = (e) => {
             const data = JSON.parse(e.data);
@@ -132,11 +139,13 @@
         connectWS();
     }
 
-    // 按下 NOW 掣 100% 自動填價
+    // 按下 NOW 掣 100% 自動填價 (對於不支持的資產，會提示用戶參考TV)
     function snap(id) {
         if(currentPrice > 0) {
             document.getElementById(id).value = currentPrice;
             calcLots();
+        } else {
+            alert("此資產無法直接抓取價格。請從右側圖表參考價格手動輸入。");
         }
     }
 
@@ -152,7 +161,7 @@
     function recordTrade() {
         const ent = parseFloat(document.getElementById('in-ent').value);
         if(!ent) return;
-        const cp = prompt("Enter Close Price:", currentPrice || ent);
+        const cp = prompt("Enter Close Price (平倉價):", currentPrice || ent);
         if(!cp) return;
         
         const sel = document.getElementById('asset-select');
