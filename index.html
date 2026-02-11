@@ -3,22 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>1M Mission Control v24.0 | TV-DATA</title>
+    <title>1M Mission Control v25.0 | AUTO-FILL</title>
     <style>
         :root { --bg: #0b0e14; --panel: #171b26; --primary: #00d2ff; --sl: #ff4b2b; --tp: #00ff88; --border: #2a2e39; }
         * { box-sizing: border-box; font-family: -apple-system, system-ui, sans-serif; }
         body { background: var(--bg); color: white; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
+        /* UI Hierarchy */
         .header { height: 60px; background: var(--panel); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; justify-content: space-between; }
-        #live-status { font-family: monospace; font-size: 14px; font-weight: bold; color: #787b86; background: #000; padding: 6px 15px; border-radius: 4px; border: 1px solid #333; }
+        #live-status { font-family: monospace; font-size: 14px; font-weight: bold; color: var(--tp); background: rgba(0,255,136,0.1); padding: 6px 15px; border-radius: 4px; border: 1px solid var(--tp); min-width: 150px; text-align: center; }
 
         .main-content { display: flex; flex: 1; min-height: 0; }
-        .chart-container { flex: 1; background: #000; position: relative;}
+        .chart-container { flex: 1; background: #000; }
+        iframe { width: 100%; height: 100%; border: none; }
         
-        /* 將 TV 圖表覆蓋到最高層級 */
-        iframe { width: 100%; height: 100%; border: none; position: absolute; top: 0; left: 0; }
-        
-        .sidebar { width: 400px; background: var(--panel); padding: 20px; overflow-y: auto; border-left: 1px solid var(--border); box-shadow: -10px 0 20px rgba(0,0,0,0.5); z-index: 100; }
+        .sidebar { width: 400px; background: var(--panel); padding: 20px; overflow-y: auto; border-left: 1px solid var(--border); box-shadow: -10px 0 20px rgba(0,0,0,0.5); }
         .card { background: #1e222d; border: 1px solid var(--border); border-radius: 12px; padding: 18px; margin-bottom: 15px; }
         .label { font-size: 11px; color: #787b86; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; display: block; }
         .val { font-size: 30px; font-weight: 900; font-family: 'Courier New', monospace; color: var(--primary); }
@@ -26,13 +25,13 @@
         .input-group { position: relative; display: flex; align-items: center; margin-top: 5px; }
         input { width: 100%; padding: 14px; background: #0b0e14; border: 1px solid #363c4e; color: white; border-radius: 8px; font-size: 20px; font-family: 'Courier New', monospace; }
         .btn-now { position: absolute; right: 6px; padding: 10px 16px; background: var(--primary); color: #000; border: none; border-radius: 6px; font-size: 13px; font-weight: 900; cursor: pointer; transition: 0.2s; }
-        .btn-now:hover { background: #fff; }
+        .btn-now:hover { background: #fff; transform: scale(1.05); }
 
-        select { width: 100%; padding: 14px; background: #0b0e14; border: 1px solid #363c4e; color: white; border-radius: 8px; font-size: 16px; }
+        select { width: 100%; padding: 14px; background: #0b0e14; border: 1px solid #363c4e; color: white; border-radius: 8px; font-size: 16px; cursor: pointer; }
         .btn-main { width: 100%; padding: 20px; background: var(--primary); border: none; border-radius: 10px; font-weight: 900; cursor: pointer; color: #000; font-size: 18px; margin-top: 10px; text-transform: uppercase; }
         
         .log-area { height: 280px; background: #000; border-top: 1px solid var(--border); overflow: auto; }
-        table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 1200px; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 1250px; }
         th { background: #1e222d; padding: 14px; text-align: left; position: sticky; top: 0; color: #787b86; border-bottom: 2px solid var(--border); }
         td { padding: 12px; border-bottom: 1px solid #2a2e39; white-space: nowrap; }
     </style>
@@ -42,14 +41,13 @@
 <div class="header">
     <div style="font-weight: 900; font-size: 24px; letter-spacing: 1px;">XM MISSION <span style="color:var(--primary)">1,000,000</span></div>
     <div style="display:flex; gap:20px; align-items:center;">
-        <div id="live-status">● TV CHART LOADED</div>
+        <div id="live-status">● CONNECTING...</div>
         <div id="hkt-clock" style="color:var(--primary); font-family:monospace; font-weight:bold; font-size:18px;"></div>
     </div>
 </div>
 
 <div class="main-content">
-    <div class="chart-container" id="chart-parent">
-        </div>
+    <div class="chart-container"><iframe id="tv-iframe"></iframe></div>
 
     <div class="sidebar">
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:15px;">
@@ -60,11 +58,16 @@
         <div class="card">
             <span class="label">1. Asset Settings (XM Spec)</span>
             <select id="asset-select" onchange="onAssetChange()">
-                <option value="100000" data-tv="FX:GBPUSD">GBPUSD</option>
-                <option value="100000" data-tv="FX:EURUSD">EURUSD</option>
-                <option value="100000" data-tv="FX:USDJPY">USDJPY</option>
-                <option value="100" data-tv="OANDA:XAUUSD">XAUUSD (Gold)</option>
-                <option value="1" data-tv="CAPITALCOM:US30">US30 (Cash)</option>
+                <optgroup label="Forex Major (100k)">
+                    <option value="100000" data-ws="gbpusdt" data-tv="FX:GBPUSD" selected>GBPUSD</option>
+                    <option value="100000" data-ws="eurusdt" data-tv="FX:EURUSD">EURUSD</option>
+                    <option value="100000" data-ws="usdjpy" data-tv="FX:USDJPY">USDJPY</option>
+                    <option value="100000" data-ws="audusdt" data-tv="FX:AUDUSD">AUDUSD</option>
+                </optgroup>
+                <optgroup label="Metals/Crypto">
+                    <option value="100" data-ws="paxgusdt" data-tv="OANDA:XAUUSD">XAUUSD (Gold)</option>
+                    <option value="1" data-ws="btcusdt" data-tv="BITSTAMP:BTCUSD">BTCUSD</option>
+                </optgroup>
             </select>
         </div>
 
@@ -73,43 +76,68 @@
             <span class="label" style="margin-top:10px;">Entry Price</span>
             <div class="input-group">
                 <input type="number" id="in-ent" step="0.00001" oninput="calcLots()" placeholder="0.00000">
-                <button class="btn-now" onclick="snapPrice('in-ent')">NOW</button>
+                <button class="btn-now" onclick="snap('in-ent')">NOW</button>
             </div>
             <span class="label" style="margin-top:15px;">Stop Loss</span>
             <div class="input-group">
                 <input type="number" id="in-sl" step="0.00001" oninput="calcLots()" placeholder="0.00000">
-                <button class="btn-now" onclick="snapPrice('in-sl')">NOW</button>
+                <button class="btn-now" onclick="snap('in-sl')">NOW</button>
             </div>
             <div style="margin-top:20px; text-align:center;">
-                <span class="label">Recommended Lots</span>
+                <span class="label">XM Recommended Lots</span>
                 <div id="out-lots" style="font-size: 60px; font-weight: 900; color: var(--primary);">0.00</div>
             </div>
         </div>
-        <button class="btn-main" onclick="recordTrade()">LOG TRADE</button>
+        <button class="btn-main" onclick="recordTrade()">LOG TRADE & SAVE</button>
     </div>
 </div>
 
-<div class="log-area"><table id="log-table"><thead><tr>
-    <th>Asset</th><th>Date</th><th>Day</th><th>HKT</th><th>Entry</th><th>SL</th><th>Lots</th><th>Close</th><th>PnL $</th><th>Balance</th><th>Action</th>
-</tr></thead><tbody id="log-body"></tbody></table></div>
+<div class="log-area">
+    <table>
+        <thead>
+            <tr>
+                <th>Asset</th><th>Date</th><th>Day</th><th>HKT Time</th><th>Entry</th><th>SL</th><th>Lots</th><th>Close</th><th>PnL $</th><th>Balance</th><th>Action</th>
+            </tr>
+        </thead>
+        <tbody id="log-body"></tbody>
+    </table>
+</div>
 
 <script>
     let balance = parseFloat(localStorage.getItem('m1_bal')) || 40000;
     let trades = JSON.parse(localStorage.getItem('m1_trades')) || [];
+    let currentPrice = 0;
+    let ws;
+
+    // 使用 WebSocket 獲取即時價格 (繞過所有瀏覽器限制)
+    function connectWS() {
+        if(ws) ws.close();
+        const sel = document.getElementById('asset-select');
+        const symbol = sel.options[sel.selectedIndex].getAttribute('data-ws');
+        
+        ws = new WebSocket(`wss://stream.binance.com:9443/ws/${symbol}@ticker`);
+        ws.onmessage = (e) => {
+            const data = JSON.parse(e.data);
+            currentPrice = parseFloat(data.c);
+            document.getElementById('live-status').innerText = `● LIVE: ${currentPrice.toFixed(5)}`;
+        };
+    }
+
+    window.onload = () => { onAssetChange(); render(); };
 
     function onAssetChange() {
         const sel = document.getElementById('asset-select');
         const tvSym = sel.options[sel.selectedIndex].getAttribute('data-tv');
-        
-        // 重新載入 TV 圖表
-        document.getElementById('chart-parent').innerHTML = `<iframe src="https://s.tradingview.com/widgetembed/?symbol=${tvSym}&interval=15&theme=dark&style=1&timezone=Asia%2FHong_Kong&locale=zh_HK" id="tv-iframe"></iframe>`;
+        document.getElementById('tv-iframe').src = `https://s.tradingview.com/widgetembed/?symbol=${tvSym}&interval=15&theme=dark&style=1&timezone=Asia%2FHong_Kong&locale=zh_HK`;
+        connectWS();
     }
 
-    // 關鍵功能的 NOW 按鈕：這是一個破解法，抓取畫面數據
-    function snapPrice(id) {
-        // 因為 iframe 限制，我們無法直接抓取 iframe 內的文字
-        // 只能提示用戶看著圖表上的價格手動輸入，或者使用「上一次成交價」
-        alert("因瀏覽器安全限制，無法自動讀取圖表內數據。請在圖表右側查看最新價格手動填入，或在[平倉價]處補填。");
+    // 按下 NOW 掣 100% 自動填價
+    function snap(id) {
+        if(currentPrice > 0) {
+            document.getElementById(id).value = currentPrice;
+            calcLots();
+        }
     }
 
     function calcLots() {
@@ -123,8 +151,9 @@
 
     function recordTrade() {
         const ent = parseFloat(document.getElementById('in-ent').value);
-        const cp = prompt("Enter Close Price (平倉價):", ent);
-        if(!cp || !ent) return;
+        if(!ent) return;
+        const cp = prompt("Enter Close Price:", currentPrice || ent);
+        if(!cp) return;
         
         const sel = document.getElementById('asset-select');
         const sl = parseFloat(document.getElementById('in-sl').value);
@@ -134,11 +163,14 @@
         
         const now = new Date();
         trades.push({
-            a: sel.options[sel.selectedIndex].text, d: now.toLocaleDateString(),
+            a: sel.options[sel.selectedIndex].text.split(' ')[0],
+            d: now.toLocaleDateString(),
             w: ['SUN','MON','TUE','WED','THU','FRI','SAT'][now.getDay()],
-            t: now.toLocaleTimeString(), en: ent.toFixed(5), sl: sl.toFixed(5), lt: lots, cp: cp, pnl: pnl.toFixed(2), bal: balance.toFixed(2)
+            t: now.toLocaleTimeString(),
+            en: ent.toFixed(5), sl: sl.toFixed(5), lt: lots, cp: cp, pnl: pnl.toFixed(2), bal: balance.toFixed(2)
         });
-        localStorage.setItem('m1_bal', balance); localStorage.setItem('m1_trades', JSON.stringify(trades));
+        localStorage.setItem('m1_bal', balance);
+        localStorage.setItem('m1_trades', JSON.stringify(trades));
         render();
     }
 
@@ -146,11 +178,16 @@
         document.getElementById('disp-bal').innerText = '$' + Math.round(balance).toLocaleString();
         document.getElementById('disp-risk').innerText = '$' + Math.round(balance * 0.02).toLocaleString();
         document.getElementById('log-body').innerHTML = trades.slice().reverse().map((t, i) => `
-            <tr><td><b>${t.a}</b></td><td>${t.d}</td><td>${t.w}</td><td>${t.t}</td><td>${t.en}</td><td>${t.sl}</td><td>${t.lt}</td><td>${t.cp}</td><td style="color:${t.pnl>=0?'#00ff88':'#ff4b2b'}">$${t.pnl}</td><td>$${t.bal}</td><td><button onclick="del(${trades.length-1-i})">❌</button></td></tr>`).join('');
+            <tr>
+                <td><b>${t.a}</b></td><td>${t.d}</td><td>${t.w}</td><td>${t.t}</td>
+                <td>${t.en}</td><td>${t.sl}</td><td>${t.lt}</td><td>${t.cp}</td>
+                <td style="color:${t.pnl>=0?'#00ff88':'#ff4b2b'}">$${t.pnl}</td><td>$${t.bal}</td>
+                <td><button onclick="del(${trades.length-1-i})" style="background:none; border:none; color:white; cursor:pointer;">❌</button></td>
+            </tr>`).join('');
     }
 
-    function del(idx) { if(confirm("Del?")) { trades.splice(idx,1); render(); localStorage.setItem('m1_trades', JSON.stringify(trades)); } }
-    window.onload = () => { onAssetChange(); render(); setInterval(() => document.getElementById('hkt-clock').innerText = 'HKT: ' + new Date().toLocaleTimeString(), 1000); };
+    function del(idx) { if(confirm("Delete?")) { trades.splice(idx,1); render(); localStorage.setItem('m1_trades', JSON.stringify(trades)); } }
+    setInterval(() => document.getElementById('hkt-clock').innerText = 'HKT: ' + new Date().toLocaleTimeString(), 1000);
 </script>
 </body>
 </html>
