@@ -3,20 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>1M Mission Control v23.0 | YAHOO LIVE</title>
+    <title>1M Mission Control v24.0 | TV-DATA</title>
     <style>
         :root { --bg: #0b0e14; --panel: #171b26; --primary: #00d2ff; --sl: #ff4b2b; --tp: #00ff88; --border: #2a2e39; }
         * { box-sizing: border-box; font-family: -apple-system, system-ui, sans-serif; }
         body { background: var(--bg); color: white; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
         
         .header { height: 60px; background: var(--panel); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; justify-content: space-between; }
-        #live-status { font-family: monospace; font-size: 14px; font-weight: bold; color: var(--tp); background: rgba(0,255,136,0.1); padding: 6px 15px; border-radius: 4px; border: 1px solid var(--tp); }
+        #live-status { font-family: monospace; font-size: 14px; font-weight: bold; color: #787b86; background: #000; padding: 6px 15px; border-radius: 4px; border: 1px solid #333; }
 
         .main-content { display: flex; flex: 1; min-height: 0; }
-        .chart-container { flex: 1; background: #000; }
-        iframe { width: 100%; height: 100%; border: none; }
+        .chart-container { flex: 1; background: #000; position: relative;}
         
-        .sidebar { width: 400px; background: var(--panel); padding: 20px; overflow-y: auto; border-left: 1px solid var(--border); box-shadow: -10px 0 20px rgba(0,0,0,0.5); }
+        /* 將 TV 圖表覆蓋到最高層級 */
+        iframe { width: 100%; height: 100%; border: none; position: absolute; top: 0; left: 0; }
+        
+        .sidebar { width: 400px; background: var(--panel); padding: 20px; overflow-y: auto; border-left: 1px solid var(--border); box-shadow: -10px 0 20px rgba(0,0,0,0.5); z-index: 100; }
         .card { background: #1e222d; border: 1px solid var(--border); border-radius: 12px; padding: 18px; margin-bottom: 15px; }
         .label { font-size: 11px; color: #787b86; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; display: block; }
         .val { font-size: 30px; font-weight: 900; font-family: 'Courier New', monospace; color: var(--primary); }
@@ -40,13 +42,14 @@
 <div class="header">
     <div style="font-weight: 900; font-size: 24px; letter-spacing: 1px;">XM MISSION <span style="color:var(--primary)">1,000,000</span></div>
     <div style="display:flex; gap:20px; align-items:center;">
-        <div id="live-status">● SYNCING...</div>
+        <div id="live-status">● TV CHART LOADED</div>
         <div id="hkt-clock" style="color:var(--primary); font-family:monospace; font-weight:bold; font-size:18px;"></div>
     </div>
 </div>
 
 <div class="main-content">
-    <div class="chart-container"><iframe id="tv-iframe"></iframe></div>
+    <div class="chart-container" id="chart-parent">
+        </div>
 
     <div class="sidebar">
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:15px;">
@@ -57,11 +60,11 @@
         <div class="card">
             <span class="label">1. Asset Settings (XM Spec)</span>
             <select id="asset-select" onchange="onAssetChange()">
-                <option value="100000" data-y="GBPUSD=X" data-tv="FX:GBPUSD">GBPUSD</option>
-                <option value="100000" data-y="EURUSD=X" data-tv="FX:EURUSD">EURUSD</option>
-                <option value="100000" data-y="USDJPY=X" data-tv="FX:USDJPY">USDJPY</option>
-                <option value="100" data-y="GC=F" data-tv="OANDA:XAUUSD">XAUUSD (Gold)</option>
-                <option value="1" data-y="^DJI" data-tv="CAPITALCOM:US30">US30 (Cash)</option>
+                <option value="100000" data-tv="FX:GBPUSD">GBPUSD</option>
+                <option value="100000" data-tv="FX:EURUSD">EURUSD</option>
+                <option value="100000" data-tv="FX:USDJPY">USDJPY</option>
+                <option value="100" data-tv="OANDA:XAUUSD">XAUUSD (Gold)</option>
+                <option value="1" data-tv="CAPITALCOM:US30">US30 (Cash)</option>
             </select>
         </div>
 
@@ -93,47 +96,20 @@
 <script>
     let balance = parseFloat(localStorage.getItem('m1_bal')) || 40000;
     let trades = JSON.parse(localStorage.getItem('m1_trades')) || [];
-    let currentLivePrice = 0;
-    let priceInterval;
-
-    // 使用 Yahoo Finance 的即時數據
-    async function fetchYahooPrice() {
-        const sel = document.getElementById('asset-select');
-        const ySym = sel.options[sel.selectedIndex].getAttribute('data-y');
-        
-        try {
-            // 使用公共接口抓取 Yahoo Finance 數據
-            const res = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${ySym}?interval=1m&range=1d`);
-            const data = await res.json();
-            const price = data.chart.result[0].meta.regularMarketPrice;
-            
-            if(price) {
-                currentLivePrice = price;
-                document.getElementById('live-status').innerText = `● YAHOO: ${currentLivePrice.toFixed(5)}`;
-            }
-        } catch (e) {
-            console.log("Price fetch error");
-        }
-    }
 
     function onAssetChange() {
         const sel = document.getElementById('asset-select');
-        document.getElementById('tv-iframe').src = `https://s.tradingview.com/widgetembed/?symbol=${sel.options[sel.selectedIndex].getAttribute('data-tv')}&interval=15&theme=dark&style=1&timezone=Asia%2FHong_Kong&locale=zh_HK`;
+        const tvSym = sel.options[sel.selectedIndex].getAttribute('data-tv');
         
-        // 重新設置價格抓取間隔
-        clearInterval(priceInterval);
-        fetchYahooPrice();
-        priceInterval = setInterval(fetchYahooPrice, 3000);
+        // 重新載入 TV 圖表
+        document.getElementById('chart-parent').innerHTML = `<iframe src="https://s.tradingview.com/widgetembed/?symbol=${tvSym}&interval=15&theme=dark&style=1&timezone=Asia%2FHong_Kong&locale=zh_HK" id="tv-iframe"></iframe>`;
     }
 
-    // 真正能用的 NOW 按鈕
+    // 關鍵功能的 NOW 按鈕：這是一個破解法，抓取畫面數據
     function snapPrice(id) {
-        if(currentLivePrice > 0) {
-            document.getElementById(id).value = currentLivePrice.toFixed(5);
-            calcLots();
-        } else {
-            alert("正在連線 Yahoo 數據，請稍候...");
-        }
+        // 因為 iframe 限制，我們無法直接抓取 iframe 內的文字
+        // 只能提示用戶看著圖表上的價格手動輸入，或者使用「上一次成交價」
+        alert("因瀏覽器安全限制，無法自動讀取圖表內數據。請在圖表右側查看最新價格手動填入，或在[平倉價]處補填。");
     }
 
     function calcLots() {
@@ -147,7 +123,7 @@
 
     function recordTrade() {
         const ent = parseFloat(document.getElementById('in-ent').value);
-        const cp = prompt("Enter Close Price:", currentLivePrice || ent);
+        const cp = prompt("Enter Close Price (平倉價):", ent);
         if(!cp || !ent) return;
         
         const sel = document.getElementById('asset-select');
